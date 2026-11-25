@@ -13,4 +13,5 @@ Offline-first, silent, big-button car games built for a **Passenger** operating 
 
 ## Docs
 - [Architecture](docs/architecture.md)
+- [Design Constraints](docs/design-constraints.md)
 - [Roadmap](roadmap.md)
