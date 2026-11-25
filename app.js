@@ -36,6 +36,99 @@
   const menuOverlayEl = $('menuOverlay');
   const menuContentEl = $('menuContent');
   const toastEl = $('toast');
+  const fxFlashEl = $('fxFlash');
+  const fxCanvasEl = $('fxCanvas');
+
+  const prefersReducedMotion = () =>
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Lightweight zero-dep confetti burst on <canvas>
+  let confettiParticles = [];
+  let confettiRaf = null;
+
+  function burstConfetti(originX, originY, palette) {
+    if (prefersReducedMotion() || !fxCanvasEl) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    fxCanvasEl.width = w * dpr;
+    fxCanvasEl.height = h * dpr;
+    const ctx = fxCanvasEl.getContext('2d');
+    if (!ctx) return;
+
+    const colors = palette || ['#38bdf8', '#3fb950', '#f0b429', '#a78bfa', '#f472b6'];
+    const cx = typeof originX === 'number' ? originX : w / 2;
+    const cy = typeof originY === 'number' ? originY : h * 0.55;
+
+    for (let i = 0; i < 42; i += 1) {
+      const angle = (Math.random() * Math.PI * 1.4) - Math.PI * 1.2; // upward fan
+      const speed = 4 + Math.random() * 9;
+      confettiParticles.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(angle) * speed + (Math.random() - 0.5) * 3,
+        vy: Math.sin(angle) * speed - 2,
+        size: 5 + Math.random() * 5,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 0.25,
+        color: colors[i % colors.length],
+        life: 1
+      });
+    }
+
+    if (!confettiRaf) {
+      const tick = () => {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        confettiParticles = confettiParticles.filter((p) => p.life > 0.02);
+        for (const p of confettiParticles) {
+          p.vy += 0.32; // gravity
+          p.vx *= 0.985;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vrot;
+          p.life -= 0.022;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.65);
+          ctx.restore();
+        }
+        if (confettiParticles.length > 0) {
+          confettiRaf = requestAnimationFrame(tick);
+        } else {
+          ctx.clearRect(0, 0, w, h);
+          confettiRaf = null;
+        }
+      };
+      confettiRaf = requestAnimationFrame(tick);
+    }
+  }
+
+  function triggerVisualFx(kind) {
+    if (prefersReducedMotion()) return;
+    if (fxFlashEl) {
+      fxFlashEl.className = 'fx-flash';
+      void fxFlashEl.offsetWidth; // restart animation
+      fxFlashEl.classList.add(kind);
+    }
+    if (screenEl) {
+      screenEl.classList.remove('shake');
+      void screenEl.offsetWidth;
+      screenEl.classList.add('shake');
+    }
+  }
+
+  function popScoreChip(playerId) {
+    if (prefersReducedMotion()) return;
+    const chip = scoreStripEl.querySelector(`[data-chip-player="${playerId}"]`);
+    if (!chip) return;
+    chip.classList.remove('pop');
+    void chip.offsetWidth;
+    chip.classList.add('pop');
+  }
 
   function loadState() {
     try {
@@ -117,7 +210,7 @@
   function go(nextScreen) {
     state.screen = nextScreen;
     saveState();
-    render();
+    render(true);
   }
 
   function startRoundWithWord(word, source) {
@@ -133,7 +226,7 @@
     go('PLAYING');
   }
 
-  function finishWordAdvance() {
+  function finishWordAdvance(fxKind = null) {
     state.currentWord = '';
     state.currentRallySongs = [];
     verifyState = null;
@@ -141,6 +234,7 @@
       state.clueGiverIdx = (state.clueGiverIdx + 1) % state.players.length;
     }
     go('PICK_WORD');
+    if (fxKind) triggerVisualFx(fxKind);
   }
 
   function awardPoint(playerId, opts = {}) {
@@ -182,6 +276,8 @@
       });
     }
 
+    burstConfetti(opts.originX, opts.originY, opts.palette);
+
     if (state.mode === 'rally' && !opts.forceNextWord) {
       state.currentRallySongs.push({
         playerName: player.name,
@@ -190,9 +286,11 @@
       verifyState = null;
       showToast(`+1 ${player.name} (Rally ${state.currentRallySongs.length})`);
       go('PLAYING');
+      popScoreChip(player.id);
     } else {
       showToast(`+1 ${player.name}`);
-      finishWordAdvance();
+      finishWordAdvance(opts.fxKind || null);
+      popScoreChip(player.id);
     }
   }
 
@@ -381,7 +479,7 @@
     queuePillEl.classList.toggle('hidden', qLen === 0);
 
     scoreStripEl.innerHTML = state.players
-      .map((p) => `<span class="score-chip">${esc(p.name)} <span class="num">${p.score}</span></span>`)
+      .map((p) => `<span class="score-chip" data-chip-player="${esc(p.id)}">${esc(p.name)} <span class="num">${p.score}</span></span>`)
       .join('');
   }
 
@@ -492,7 +590,7 @@
     screenEl.innerHTML = `
       <div class="hero">
         <div class="hero-eyebrow">${esc(eyebrow)}</div>
-        <div class="hero-word">${esc(state.currentWord)}</div>
+        <div class="hero-word word-pop">${esc(state.currentWord)}</div>
         ${rallyHtml}
       </div>
 
@@ -723,10 +821,13 @@
         <button class="big-btn short" data-menu="undo" type="button" ${state.history.some((h) => h.status !== 'revoked') ? '' : 'disabled'}>
           <span>Undo Last</span>
         </button>
-        <button class="big-btn short red" data-menu="reset" type="button">
-          <span>New Trip</span>
-        </button>
+        ${state.currentWord
+          ? `<button class="big-btn short amber" data-menu="skip-word" type="button"><span>Skip Word</span></button>`
+          : `<button class="big-btn short red" data-menu="reset" type="button"><span>New Trip</span></button>`}
       </div>
+      ${state.currentWord
+        ? `<button class="big-btn short red" data-menu="reset" type="button"><span>New Trip (Reset Scores)</span></button>`
+        : ''}
 
       ${queueHtml}
 
@@ -755,7 +856,7 @@
     `;
   }
 
-  function render() {
+  function render(animate = false) {
     renderTopBar();
     if (state.screen === 'PICK_WORD') renderPickWord();
     else if (state.screen === 'ENTER_WORD') renderEnterWord();
@@ -763,6 +864,17 @@
     else if (state.screen === 'BLUFF_CHECK') renderBluffCheck();
     else if (state.screen === 'VERIFY') renderVerify();
     else renderPickWord();
+
+    if (animate && !prefersReducedMotion()) {
+      screenEl.classList.remove('screen-in');
+      void screenEl.offsetWidth;
+      screenEl.classList.add('screen-in');
+    }
+  }
+
+  function btnCenter(el) {
+    const r = el.getBoundingClientRect();
+    return { originX: r.left + r.width / 2, originY: r.top + r.height / 2 };
   }
 
   // Delegated click handlers on main screen
@@ -777,19 +889,30 @@
 
     const awardBtn = e.target.closest('[data-award]');
     if (awardBtn) {
-      awardPoint(awardBtn.dataset.award);
+      awardPoint(awardBtn.dataset.award, btnCenter(awardBtn));
       return;
     }
 
     const bluffPass = e.target.closest('[data-bluff-pass]');
     if (bluffPass) {
-      awardPoint(bluffPass.dataset.bluffPass, { bluff: true, forceNextWord: true });
+      awardPoint(bluffPass.dataset.bluffPass, {
+        ...btnCenter(bluffPass),
+        bluff: true,
+        forceNextWord: true,
+        palette: ['#3fb950', '#38bdf8', '#f0b429']
+      });
       return;
     }
 
     const bluffFail = e.target.closest('[data-bluff-fail]');
     if (bluffFail) {
-      awardPoint(bluffFail.dataset.bluffFail, { bluff: true, forceNextWord: true });
+      awardPoint(bluffFail.dataset.bluffFail, {
+        ...btnCenter(bluffFail),
+        bluff: true,
+        forceNextWord: true,
+        fxKind: 'buzzer',
+        palette: ['#f85149', '#f0b429', '#38bdf8']
+      });
       return;
     }
 
@@ -804,6 +927,7 @@
     if (verifyAward && verifyState && verifyState.results) {
       const r = verifyState.results[verifyState.selectedIdx];
       awardPoint(verifyAward.dataset.verifyAward, {
+        ...btnCenter(verifyAward),
         songLabel: `${r.title} — ${r.artist}`,
         songKey: r.key,
         bluff: state.returnScreen === 'BLUFF_CHECK',
@@ -815,6 +939,7 @@
     const queueAward = e.target.closest('[data-queue-award]');
     if (queueAward && verifyState) {
       awardPoint(queueAward.dataset.queueAward, {
+        ...btnCenter(queueAward),
         songLabel: verifyState.query,
         songKey: songKey(verifyState.query, ''),
         bluff: state.returnScreen === 'BLUFF_CHECK',
@@ -833,11 +958,16 @@
     else if (act === 'submit-word') {
       const inp = $('enterWordInput');
       if (inp && inp.value.trim()) startRoundWithWord(inp.value, 'human');
-      else showToast('Type a word first');
+      else {
+        triggerVisualFx('skip');
+        showToast('Type a word first');
+      }
     } else if (act === 'go-bluff') go('BLUFF_CHECK');
     else if (act === 'back-playing') go('PLAYING');
-    else if (act === 'next-word') finishWordAdvance();
-    else if (act === 'go-verify') {
+    else if (act === 'next-word') {
+      showToast('Skipped word');
+      finishWordAdvance('skip');
+    } else if (act === 'go-verify') {
       state.returnScreen = state.screen;
       verifyState = null;
       go('VERIFY');
@@ -888,6 +1018,11 @@
       render();
     } else if (cmd === 'undo') {
       undoLast();
+    } else if (cmd === 'skip-word') {
+      menuOpen = false;
+      menuOverlayEl.classList.add('hidden');
+      showToast('Skipped word');
+      finishWordAdvance('skip');
     } else if (cmd === 'process-queue') {
       processQueue();
     } else if (cmd === 'add-player') {
