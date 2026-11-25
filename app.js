@@ -3,7 +3,8 @@
   const LRCLIB_SEARCH = 'https://lrclib.net/api/search?q=';
 
   // State machine screens:
-  // 'PICK_WORD' -> 'ENTER_WORD' -> 'PLAYING' <-> 'BLUFF_CHECK' <-> 'VERIFY'
+  // Classic: 'PICK_WORD' -> 'ENTER_WORD' -> 'PLAYING' <-> 'BLUFF_CHECK' <-> 'VERIFY'
+  // Rapid:   'RAPID' (giant points-only scoreboard)
   const defaultState = () => ({
     screen: 'PICK_WORD',
     returnScreen: 'PLAYING',
@@ -11,14 +12,14 @@
       { id: 'p1', name: 'Driver', score: 0 },
       { id: 'p2', name: 'Passenger', score: 0 }
     ],
-    mode: 'classic',        // 'classic' | 'rally'
+    mode: 'classic',        // 'classic' | 'rapid'
     wordSource: 'human',    // 'human' | 'easy' | 'medium' | 'hard'
     clueGiverIdx: 0,
     currentWord: '',
-    currentRallySongs: [],  // [{ playerName, song }]
+    wordStartedAt: null,    // epoch ms when clue/word was set (invisible timing metadata)
     usedWords: [],
     usedSongs: [],
-    history: [],            // [{ id, word, playerId, playerName, song, mode, bluff, status, timestamp }]
+    history: [],            // [{ id, word, wordSource, wordStartedAt, elapsedMs, playerId, playerName, song, mode, bluff, status, timestamp }]
     pendingQueue: [],       // [{ id, historyId, query, word, playerId, playerName, timestamp }]
     allowRootMatch: true
   });
@@ -135,7 +136,10 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaultState();
       const parsed = { ...defaultState(), ...JSON.parse(raw) };
-      if (!parsed.currentWord && (parsed.screen === 'PLAYING' || parsed.screen === 'BLUFF_CHECK' || parsed.screen === 'VERIFY')) {
+      if (parsed.mode === 'rally') parsed.mode = 'rapid';
+      if (parsed.mode === 'rapid') {
+        parsed.screen = 'RAPID';
+      } else if (!parsed.currentWord && (parsed.screen === 'PLAYING' || parsed.screen === 'BLUFF_CHECK' || parsed.screen === 'VERIFY')) {
         parsed.screen = 'PICK_WORD';
       }
       return parsed;
@@ -218,7 +222,7 @@
     if (!cleaned) return;
     state.currentWord = cleaned;
     state.wordSource = source;
-    state.currentRallySongs = [];
+    state.wordStartedAt = Date.now();
     if (!state.usedWords.includes(cleaned)) {
       state.usedWords.push(cleaned);
     }
@@ -228,7 +232,7 @@
 
   function finishWordAdvance(fxKind = null) {
     state.currentWord = '';
-    state.currentRallySongs = [];
+    state.wordStartedAt = null;
     verifyState = null;
     if (state.wordSource === 'human') {
       state.clueGiverIdx = (state.clueGiverIdx + 1) % state.players.length;
@@ -237,19 +241,36 @@
     if (fxKind) triggerVisualFx(fxKind);
   }
 
+  function formatElapsed(ms) {
+    if (typeof ms !== 'number' || !Number.isFinite(ms)) return '';
+    const sec = ms / 1000;
+    if (sec < 60) return `${sec.toFixed(1)}s`;
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec % 60);
+    return `${m}m ${s}s`;
+  }
+
   function awardPoint(playerId, opts = {}) {
     const player = state.players.find((p) => p.id === playerId);
     if (!player) return;
 
-    const word = state.currentWord || '(word)';
+    const now = Date.now();
+    const isRapid = state.mode === 'rapid';
+    const word = isRapid ? '' : (state.currentWord || '(word)');
     const songLabel = opts.songLabel || '';
     const sKey = opts.songKey || '';
+    const elapsedMs = (!isRapid && state.wordStartedAt)
+      ? Math.max(0, now - state.wordStartedAt)
+      : null;
 
     player.score += 1;
-    const entryId = `h_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const entryId = `h_${now}_${Math.random().toString(36).slice(2, 6)}`;
     state.history.unshift({
       id: entryId,
       word,
+      wordSource: isRapid ? 'rapid' : state.wordSource,
+      wordStartedAt: isRapid ? null : state.wordStartedAt,
+      elapsedMs,
       playerId: player.id,
       playerName: player.name,
       song: songLabel,
@@ -257,7 +278,7 @@
       mode: state.mode,
       bluff: Boolean(opts.bluff),
       status: opts.status || 'awarded',
-      timestamp: Date.now()
+      timestamp: now
     });
 
     if (sKey && !state.usedSongs.includes(sKey)) {
@@ -266,27 +287,23 @@
 
     if (opts.queueQuery) {
       state.pendingQueue.push({
-        id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: `q_${now}_${Math.random().toString(36).slice(2, 6)}`,
         historyId: entryId,
         query: opts.queueQuery,
         word,
         playerId: player.id,
         playerName: player.name,
-        timestamp: Date.now()
+        timestamp: now
       });
     }
 
     burstConfetti(opts.originX, opts.originY, opts.palette);
 
-    if (state.mode === 'rally' && !opts.forceNextWord) {
-      state.currentRallySongs.push({
-        playerName: player.name,
-        song: songLabel || 'Song proved'
-      });
-      verifyState = null;
-      showToast(`+1 ${player.name} (Rally ${state.currentRallySongs.length})`);
-      go('PLAYING');
+    if (isRapid) {
+      saveState();
+      render(false);
       popScoreChip(player.id);
+      showToast(`+1 ${player.name}`);
     } else {
       showToast(`+1 ${player.name}`);
       finishWordAdvance(opts.fxKind || null);
@@ -487,7 +504,7 @@
     const cg = clueGiver();
     screenEl.innerHTML = `
       <div class="hero">
-        <div class="hero-eyebrow">${state.mode === 'rally' ? 'RALLY MODE' : 'CLASSIC MODE'}</div>
+        <div class="hero-eyebrow">CLASSIC MODE</div>
         <div class="hero-word" style="font-size:clamp(30px, 9vw, 44px);">New Word</div>
         <div class="hero-sub">${esc(cg.name)}'s turn to clue, or deal one</div>
       </div>
@@ -513,6 +530,28 @@
           </button>
         </div>
       </div>
+    `;
+  }
+
+  function renderRapid() {
+    const playerBtns = state.players
+      .map((p, idx) => `
+        <button class="big-btn giant ${idx === 0 ? 'accent-outline' : 'green'}" data-award="${esc(p.id)}" type="button">
+          <span>${esc(p.name)}</span>
+          <span class="score-big">${p.score}</span>
+          <span class="sub">Tap +1 Point</span>
+        </button>
+      `)
+      .join('');
+
+    const hasUndo = state.history.some((h) => h.status !== 'revoked');
+
+    screenEl.innerHTML = `
+      <div class="hero-eyebrow" style="text-align:center;">RAPID MODE · TAP WHOEVER SCORED</div>
+      <div class="rapid-grid">${playerBtns}</div>
+      <button class="big-btn short" data-action="rapid-undo" type="button" ${hasUndo ? '' : 'disabled'}>
+        <span>Undo Last Point</span>
+      </button>
     `;
   }
 
@@ -558,14 +597,8 @@
     const cg = clueGiver();
     const isHuman = state.wordSource === 'human';
     const eyebrow = isHuman
-      ? `Clue by ${cg.name} · ${state.mode === 'rally' ? 'Rally' : 'Others prove'}`
-      : `App Deal · ${state.wordSource.toUpperCase()} · ${state.mode === 'rally' ? 'Rally' : 'Race'}`;
-
-    const rallyHtml = state.mode === 'rally' && state.currentRallySongs.length > 0
-      ? `<div class="rally-pills">${state.currentRallySongs
-          .map((r) => `<span class="rally-pill">${esc(r.playerName)}: ${esc(r.song)}</span>`)
-          .join('')}</div>`
-      : '';
+      ? `Clue by ${cg.name} · Others prove`
+      : `App Deal · ${state.wordSource.toUpperCase()} · First to prove`;
 
     const playerBtns = state.players
       .map((p) => `
@@ -577,21 +610,20 @@
       `)
       .join('');
 
-    const rightAction = isHuman && state.mode === 'classic'
+    const rightAction = isHuman
       ? `<button class="big-btn short amber" data-action="go-bluff" type="button">
            <span>Prove It!</span>
            <span class="sub">Bluff check</span>
          </button>`
       : `<button class="big-btn short" data-action="next-word" type="button">
            <span>Next Word</span>
-           <span class="sub">Skip / finish</span>
+           <span class="sub">Skip word</span>
          </button>`;
 
     screenEl.innerHTML = `
       <div class="hero">
         <div class="hero-eyebrow">${esc(eyebrow)}</div>
         <div class="hero-word word-pop">${esc(state.currentWord)}</div>
-        ${rallyHtml}
       </div>
 
       <div class="btn-stack">
@@ -781,15 +813,17 @@
             : h.status === 'failed-check' ? '<span class="verdict-pill miss">Not in Lyrics</span>'
             : h.status === 'revoked' ? '<span class="verdict-pill miss">Revoked</span>'
             : '';
+          const elapsedTag = h.elapsedMs != null ? ` · ${formatElapsed(h.elapsedMs)}` : '';
+          const wordLabel = h.word ? ` · "${esc(h.word)}"` : ' · rapid';
           return `
             <div class="list-card">
               <div class="list-top">
-                <span>${esc(h.playerName)} · "${esc(h.word)}"</span>
+                <span>${esc(h.playerName)}${wordLabel}</span>
                 ${badge}
               </div>
               ${h.song ? `<div class="list-sub">${esc(h.song)}</div>` : ''}
               <div class="list-top" style="margin-top:4px;">
-                <span class="list-sub">${h.mode}${h.bluff ? ' · bluff' : ''}</span>
+                <span class="list-sub">${h.mode}${h.bluff ? ' · bluff' : ''}${elapsedTag}</span>
                 ${h.status !== 'revoked' ? `<button class="menu-btn" style="min-height:36px;padding:6px 12px;font-size:13px;" data-revoke="${esc(h.id)}" type="button">Revoke -1</button>` : ''}
               </div>
             </div>
@@ -808,11 +842,11 @@
         <div class="btn-row">
           <button class="big-btn short ${state.mode === 'classic' ? 'primary' : ''}" data-set-mode="classic" type="button">
             <span>Classic</span>
-            <span class="sub">1 word = 1 pt</span>
+            <span class="sub">Words &amp; verify</span>
           </button>
-          <button class="big-btn short ${state.mode === 'rally' ? 'primary' : ''}" data-set-mode="rally" type="button">
-            <span>Rally</span>
-            <span class="sub">Volley songs</span>
+          <button class="big-btn short ${state.mode === 'rapid' ? 'primary' : ''}" data-set-mode="rapid" type="button">
+            <span>Rapid</span>
+            <span class="sub">Points only</span>
           </button>
         </div>
       </div>
@@ -858,7 +892,8 @@
 
   function render(animate = false) {
     renderTopBar();
-    if (state.screen === 'PICK_WORD') renderPickWord();
+    if (state.mode === 'rapid' || state.screen === 'RAPID') renderRapid();
+    else if (state.screen === 'PICK_WORD') renderPickWord();
     else if (state.screen === 'ENTER_WORD') renderEnterWord();
     else if (state.screen === 'PLAYING') renderPlaying();
     else if (state.screen === 'BLUFF_CHECK') renderBluffCheck();
@@ -974,6 +1009,8 @@
     } else if (act === 'back-from-verify') {
       verifyState = null;
       go(state.returnScreen || 'PLAYING');
+    } else if (act === 'rapid-undo') {
+      undoLast();
     }
   });
 
@@ -987,10 +1024,18 @@
   menuContentEl.addEventListener('click', (e) => {
     const modeBtn = e.target.closest('[data-set-mode]');
     if (modeBtn) {
-      state.mode = modeBtn.dataset.setMode;
+      const nextMode = modeBtn.dataset.setMode;
+      state.mode = nextMode;
+      if (nextMode === 'rapid') {
+        state.screen = 'RAPID';
+      } else {
+        state.screen = state.currentWord ? 'PLAYING' : 'PICK_WORD';
+      }
       saveState();
-      renderMenu();
-      render();
+      menuOpen = false;
+      menuOverlayEl.classList.add('hidden');
+      render(true);
+      showToast(nextMode === 'rapid' ? 'Rapid Mode (Points only)' : 'Classic Mode');
       return;
     }
 

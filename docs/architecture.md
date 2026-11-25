@@ -35,8 +35,7 @@ stateDiagram-v2
     ENTER_WORD --> PLAYING : Start Round
     ENTER_WORD --> PICK_WORD : Back
 
-    PLAYING --> PICK_WORD : Award +1 (Classic) / Next Word
-    PLAYING --> PLAYING : Award +1 (Rally)
+    PLAYING --> PICK_WORD : Award +1 / Next Word
     PLAYING --> BLUFF_CHECK : Prove It! (Human Clue)
     PLAYING --> VERIFY : Verify Song
 
@@ -44,10 +43,19 @@ stateDiagram-v2
     BLUFF_CHECK --> PLAYING : Back
     BLUFF_CHECK --> VERIFY : Verify Song
 
-    VERIFY --> PLAYING : Back (from Playing) / Award +1 (Rally)
+    VERIFY --> PLAYING : Back (from Playing)
     VERIFY --> BLUFF_CHECK : Back (from Bluff)
-    VERIFY --> PICK_WORD : Award +1 or Queue +1 (Classic)
+    VERIFY --> PICK_WORD : Award +1 or Queue +1
+
+    state "RAPID (Points-Only Mode)" as RAPID
+    PICK_WORD --> RAPID : Menu → Rapid
+    PLAYING --> RAPID : Menu → Rapid
+    RAPID --> RAPID : Tap Player (+1) / Undo
+    RAPID --> PICK_WORD : Menu → Classic
 ```
+
+## Timing Metadata (Invisible)
+In **Classic** mode, the app records `wordStartedAt` (epoch ms) when a word is submitted or dealt, and saves `elapsedMs` on the history entry when a point is awarded. No countdown or clock is shown during play; elapsed solve time appears quietly in Trip History inside `Menu` and is preserved in `localStorage` for future difficulty calibration.
 
 ## Offline & Verification Data Flow
 

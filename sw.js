@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cargames-song-v4';
+const CACHE_NAME = 'cargames-song-v5';
 const ASSETS = [
   './',
   './index.html',
