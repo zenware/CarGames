@@ -28,9 +28,11 @@ Any candidate game for CarGames should be scored against these constraints befor
 - **Graceful network degradation:** Any online lookup (e.g., lyric verification) must time out quickly and fall back to a local **Pending Queue** that resolves automatically when signal returns.
 - **Crash/lock resilience:** Persist full trip state to `localStorage` on every action so locking the phone at a rest stop or switching to Maps never loses a round or score.
 
-## 5. Player Count & Trip Context
+## 5. Role Symmetry, Cognitive Parity & Player Count
+- **Strong preference for role symmetry:** Every player—including the Driver—should be able to play every role in the game. Avoid mechanics that rely on secret visual prompts shown only to the MC (e.g., *Wavelength*, *Taboo*, *Heads Up*), because they permanently lock the Driver out of the clue-giver role.
+- **Cognitive parity (no hidden visual advantage):** Even when the app hides the answer from everyone, avoid sparse visual state that is effortless to read on screen but punishing to hold in working memory while driving. For example, classic Hangman blanks (`_ A _ _ E _ N _`) force the Driver to track both letters and sparse blank positions in their head, whereas guessing letters sequentially left-to-right (`M` → `MO` → `MOO`) keeps cognitive load fair.
 - **2-player first (Driver + Passenger):** Games must work cleanly with exactly two adults on Day 1—mechanics that require 3+ players (e.g., *Contact*, social deduction) are out of scope for the core set.
-- **Clean scaling to N players:** Data structures and scoreboards should scale to 3–6 players (family / road-trip carloads) without rewriting the shell.
+- **Clean scaling to N players (zero scroll up to 6):** Preserve oversized score buttons at lower counts (2–4P Classic, 2–3P Rapid), then drop redundant in-button scores and switch to compact 2-column grids at higher counts (5–6P Classic, 4–6P Rapid) so all players stay one-tap reachable without scrolling.
 - **Environment tags:** Explicitly tag games that fail at night or on empty rural interstates (e.g., license-plate or road-sign observation games) as **Daylight / Traffic Only**.
 
 ## 6. Platform & Scope Discipline

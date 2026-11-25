@@ -17,11 +17,17 @@
     <!-- Persistent slim top bar -->
     <header class="topbar">
       <div id="scoreStrip" class="score-strip"></div>
-      <button id="btnMenu" class="menu-btn" type="button">
-        <span id="netDot" class="net-dot online" aria-label="Online"></span>
-        <span>Menu</span>
-        <span id="queuePill" class="queue-pill hidden">0</span>
-      </button>
+      <div class="topbar-right">
+        <span id="offlinePill" class="offline-pill hidden" aria-live="polite">Offline</span>
+        <button id="btnMenu" class="menu-btn icon-only" type="button" aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="18" x2="20" y2="18" />
+          </svg>
+          <span id="queuePill" class="queue-pill hidden">0</span>
+        </button>
+      </div>
     </header>
 
     <!-- State machine screen mount -->

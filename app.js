@@ -31,7 +31,7 @@
 
   const $ = (id) => document.getElementById(id);
   const scoreStripEl = $('scoreStrip');
-  const netDotEl = $('netDot');
+  const offlinePillEl = $('offlinePill');
   const queuePillEl = $('queuePill');
   const screenEl = $('screen');
   const menuOverlayEl = $('menuOverlay');
@@ -488,8 +488,9 @@
   // Rendering
   function renderTopBar() {
     const online = navigator.onLine;
-    netDotEl.className = `net-dot ${online ? 'online' : 'offline'}`;
-    netDotEl.setAttribute('aria-label', online ? 'Online' : 'Offline');
+    if (offlinePillEl) {
+      offlinePillEl.classList.toggle('hidden', online);
+    }
 
     const qLen = state.pendingQueue.length;
     queuePillEl.textContent = String(qLen);
@@ -534,21 +535,30 @@
   }
 
   function renderRapid() {
+    const compact = state.players.length >= 4;
+    const accents = ['accent-outline', 'green', 'amber', 'accent-outline', 'green', 'amber'];
     const playerBtns = state.players
-      .map((p, idx) => `
-        <button class="big-btn giant ${idx === 0 ? 'accent-outline' : 'green'}" data-award="${esc(p.id)}" type="button">
-          <span>${esc(p.name)}</span>
-          <span class="score-big">${p.score}</span>
-          <span class="sub">Tap +1 Point</span>
-        </button>
-      `)
+      .map((p, idx) => compact
+        ? `
+          <button class="big-btn giant ${accents[idx % accents.length]}" data-award="${esc(p.id)}" type="button">
+            <span>${esc(p.name)}</span>
+            <span class="sub">+1 Point</span>
+          </button>
+        `
+        : `
+          <button class="big-btn giant ${accents[idx % accents.length]}" data-award="${esc(p.id)}" type="button">
+            <span>${esc(p.name)}</span>
+            <span class="score-big">${p.score}</span>
+            <span class="sub">Tap +1 Point</span>
+          </button>
+        `)
       .join('');
 
     const hasUndo = state.history.some((h) => h.status !== 'revoked');
 
     screenEl.innerHTML = `
       <div class="hero-eyebrow" style="text-align:center;">RAPID MODE · TAP WHOEVER SCORED</div>
-      <div class="rapid-grid">${playerBtns}</div>
+      <div class="rapid-grid ${compact ? 'grid-2col' : ''}">${playerBtns}</div>
       <button class="big-btn short" data-action="rapid-undo" type="button" ${hasUndo ? '' : 'disabled'}>
         <span>Undo Last Point</span>
       </button>
@@ -600,14 +610,22 @@
       ? `Clue by ${cg.name} · Others prove`
       : `App Deal · ${state.wordSource.toUpperCase()} · First to prove`;
 
+    const compact = state.players.length >= 5;
     const playerBtns = state.players
-      .map((p) => `
-        <button class="big-btn tall" data-award="${esc(p.id)}" type="button">
-          <span>${esc(p.name)}</span>
-          <span class="score-big">${p.score}</span>
-          <span class="sub">+1 Point</span>
-        </button>
-      `)
+      .map((p) => compact
+        ? `
+          <button class="big-btn compact" data-award="${esc(p.id)}" type="button">
+            <span>${esc(p.name)}</span>
+            <span class="sub">+1</span>
+          </button>
+        `
+        : `
+          <button class="big-btn tall" data-award="${esc(p.id)}" type="button">
+            <span>${esc(p.name)}</span>
+            <span class="score-big">${p.score}</span>
+            <span class="sub">+1 Point</span>
+          </button>
+        `)
       .join('');
 
     const rightAction = isHuman
