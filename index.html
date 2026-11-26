@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b0f14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Song Game · CarGames</title>
+  <title>CarGames</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -16,7 +16,14 @@
   <div class="shell">
     <!-- Persistent slim top bar -->
     <header class="topbar">
-      <div id="scoreStrip" class="score-strip"></div>
+      <div class="topbar-left">
+        <button id="btnHome" class="menu-btn icon-only hidden" type="button" aria-label="Home">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <div id="scoreStrip" class="score-strip"></div>
+      </div>
       <div class="topbar-right">
         <span id="offlinePill" class="offline-pill hidden" aria-live="polite">Offline</span>
         <button id="btnMenu" class="menu-btn icon-only" type="button" aria-label="Menu">
@@ -44,6 +51,7 @@
   <canvas id="fxCanvas" class="fx-canvas" aria-hidden="true"></canvas>
 
   <script src="words.js"></script>
+  <script src="decks.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

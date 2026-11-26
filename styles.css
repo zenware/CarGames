@@ -56,9 +56,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-height: 48px;
   flex-shrink: 0;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .score-strip {
@@ -352,6 +360,165 @@ body {
 .big-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.big-btn.eliminated {
+  opacity: 0.34;
+  border-style: dashed;
+  border-color: var(--red);
+  text-decoration: line-through;
+}
+
+/* Home screen game cards */
+.home-header {
+  text-align: center;
+  padding: 6px 0 2px;
+}
+
+.home-title {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.home-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.home-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+}
+
+.home-card {
+  flex: 1;
+  min-height: 17dvh;
+  max-height: 190px;
+  width: 100%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.14s ease;
+}
+
+.home-card:active {
+  transform: scale(0.96);
+  border-color: var(--accent);
+}
+
+.home-emoji {
+  font-size: 44px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.home-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.home-card-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.home-card-desc {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Prefix Reveal (left-to-right sequential letters) */
+.prefix-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.prefix-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 46px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent-bg);
+  border: 2px solid var(--accent);
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.prefix-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--amber-bg);
+  border: 2px dashed var(--amber);
+  color: var(--amber);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.prefix-rest {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.tried-row {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--red);
+  min-height: 20px;
+}
+
+.cat-hero-text {
+  font-size: clamp(26px, 7.5vw, 38px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.letter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 /* Giant text inputs for Enter Word & Verify Song */

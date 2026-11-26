@@ -1,9 +1,10 @@
-const CACHE_NAME = 'cargames-song-v6';
+const CACHE_NAME = 'cargames-v7';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './words.js',
+  './decks.js',
   './app.js',
   './manifest.json',
   './icon.svg'
